@@ -21,11 +21,15 @@
 #define pot1 32
 #define pot2 13
 
+#define PWMchannel 2 // tenemos 16 canales del 0 a 15
+#define PWMchannel2 15 // tenemos 16 canales del 0 a 15
+#define PWMchannel3 5  // tenemos 16 canales del 0 a 15
+#define frecPWM 5000   // frecuencia en Hz
+#define resolucion 8 //8 bits se puede de 1 a 16 bits
+
 #define ledR 23 //ahi va la led roja
-
-#define ledV 2 //ahi va la led verde
-
-#define ledA 4 //para led azul
+#define ledV 2  //ahi va la led verde
+#define ledA 4  //para led azul
 
 //-----------------------------------------------------------------------------
 //Prototipo de funciones
@@ -43,11 +47,8 @@ float voltaje2;
 
 String mensaje = "";
 
-int dutycycleR; // para intensidad
-int dutycycleV;
-int dutycycleA;
-
 int contar = 0;
+
 //-----------------------------------------------------------------------------
 //ISR
 //-----------------------------------------------------------------------------
@@ -68,6 +69,13 @@ void setup()
   // entradas
   pinMode(pot1, INPUT);
   pinMode(pot2, INPUT);
+
+  ledcSetup(PWMchannel, frecPWM, resolucion);
+  ledcSetup(PWMchannel2, frecPWM, resolucion);
+  ledcSetup(PWMchannel3, frecPWM, resolucion);
+  ledcAttachPin(ledR, PWMchannel);
+  ledcAttachPin(ledV, PWMchannel2);
+  ledcAttachPin(ledA, PWMchannel3);
 }
 //-----------------------------------------------------------------------------
 //loop principal
@@ -75,7 +83,7 @@ void setup()
 
 void loop()
 {
-  Serial.print(contar);
+
   //********config UART***********************************************************************
   if (Serial.available() > 0)
   {
@@ -85,12 +93,12 @@ void loop()
 
     if (mensaje == "pot1")
     {
-      Serial.print(voltaje);
+      Serial.print(voltaje / 10);
       mensaje = "";
     }
     if (mensaje == "pot2")
     {
-      Serial.print(voltaje2);
+      Serial.print(voltaje2 / 10);
       mensaje = "";
     }
     if (mensaje == "1")
@@ -108,12 +116,14 @@ void loop()
         }
       }
       last_time_intrr1 = time_intrr1; //update del valor de la interrupcion
-      digitalWrite(ledA, contar);
+      ledcWrite(PWMchannel3, contar);
+
       Serial.println("LED SUMA");
       mensaje = "";
     }
     if (mensaje == "2")
     {
+
       static unsigned long last_time_intrr2 = 0; //[ultimo tiempo]
       unsigned long time_intrr2 = millis();      //tiempo en tiempo real
 
@@ -127,8 +137,7 @@ void loop()
         }
       }
       last_time_intrr2 = time_intrr2; //update del valor de la interrupcion
-
-      digitalWrite(ledA, contar);
+      ledcWrite(PWMchannel3, contar);
       Serial.println("LED RESTA");
       mensaje = "";
     }
@@ -154,16 +163,6 @@ void loop()
   temp2 = temp2 - unidades2 * 10.0;
   decimal2 = temp2;
 
-  //Para leds
-  int potvalue = analogRead(pot1);
-  int ledValue = map(potvalue, 0, 1023, 0, 255);
-  digitalWrite(ledR, ledValue);
-  delay(2);
-  int potvalue2 = analogRead(pot2);
-  int ledValue2 = map(potvalue2, 0, 1023, 0, 255);
-  digitalWrite(ledV, ledValue2);
-  delay(2);
-
   //para limpiar LCD
   LCD.clear();
   LCD.print("Rojo:");
@@ -186,4 +185,12 @@ void loop()
   LCD.print(contar);
 
   delay(1000);
+
+  int val = analogRead(pot1);
+  int intensidade = map(val, 0, 1023, 0, 255);
+  ledcWrite(PWMchannel, intensidade);
+
+  int valor = analogRead(pot2);
+  int brillo = map(valor, 0, 1023, 0, 255);
+  ledcWrite(PWMchannel2, brillo);
 }
