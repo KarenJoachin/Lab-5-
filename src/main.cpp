@@ -11,7 +11,6 @@
 //-----------------------------------------------------------------------------
 //Definiciond de etiquetas
 //-----------------------------------------------------------------------------
-
 #define d4 19
 #define d5 21
 #define d6 5
@@ -22,21 +21,16 @@
 #define pot1 32
 #define pot2 13
 
-#define PWMcanalL1 1 // tenemos 16 canales del 0 a 15
-#define frecPWM 50   // frecuencia en Hz para todo leds y motor.
-#define resolucion 8 //8 bits se puede de 1 a 16 bits ... significa que tengo de 0 a 255 para dutty cicle
-#define pinPWMR      //ahi va la led roja
+#define ledR 23 //ahi va la led roja
 
-#define PWMcanalL2 2
-#define pinPWMV //ahi va la led verde
+#define ledV 2 //ahi va la led verde
 
-#define PWMcanalL3 3
-#define pinPWMA //para led azul
+#define ledA 4 //para led azul
 
 //-----------------------------------------------------------------------------
 //Prototipo de funciones
 //-----------------------------------------------------------------------------
-void configurarPWMLED(void);
+
 //-----------------------------------------------------------------------------
 //Variabls Globales
 //-----------------------------------------------------------------------------
@@ -47,7 +41,13 @@ int adcRaw;
 float voltaje;
 float voltaje2;
 
+String mensaje = "";
 
+int dutycycleR; // para intensidad
+int dutycycleV;
+int dutycycleA;
+
+int contar = 0;
 //-----------------------------------------------------------------------------
 //ISR
 //-----------------------------------------------------------------------------
@@ -61,8 +61,13 @@ void setup()
   Serial.begin(115200);
   LCD.begin(16, 2);
 
-
-  configurarPWMLED();
+  //Salida de
+  pinMode(ledR, OUTPUT);
+  pinMode(ledV, OUTPUT);
+  pinMode(ledA, OUTPUT);
+  // entradas
+  pinMode(pot1, INPUT);
+  pinMode(pot2, INPUT);
 }
 //-----------------------------------------------------------------------------
 //loop principal
@@ -70,8 +75,68 @@ void setup()
 
 void loop()
 {
-  contador;
-  //pra primer potenciometro
+  Serial.print(contar);
+  //********config UART***********************************************************************
+  if (Serial.available() > 0)
+  {
+    mensaje = Serial.readStringUntil('\n'); // para leer el dato
+    Serial.print("Recibi el siguiente mensaje: ");
+    Serial.println(mensaje);
+
+    if (mensaje == "pot1")
+    {
+      Serial.print(voltaje);
+      mensaje = "";
+    }
+    if (mensaje == "pot2")
+    {
+      Serial.print(voltaje2);
+      mensaje = "";
+    }
+    if (mensaje == "1")
+    {
+      static unsigned long last_time_intrr1 = 0; //[ultimo tiempo]
+      unsigned long time_intrr1 = millis();      //tiempo en tiempo real
+
+      if (time_intrr1 - last_time_intrr1 > 200)
+      {
+        contar++;
+
+        if (contar > 255)
+        {
+          contar = 0;
+        }
+      }
+      last_time_intrr1 = time_intrr1; //update del valor de la interrupcion
+      digitalWrite(ledA, contar);
+      Serial.println("LED SUMA");
+      mensaje = "";
+    }
+    if (mensaje == "2")
+    {
+      static unsigned long last_time_intrr2 = 0; //[ultimo tiempo]
+      unsigned long time_intrr2 = millis();      //tiempo en tiempo real
+
+      if (time_intrr2 - last_time_intrr2 > 200)
+      {
+        contar--;
+
+        if (contar < 0)
+        {
+          contar = 255;
+        }
+      }
+      last_time_intrr2 = time_intrr2; //update del valor de la interrupcion
+
+      digitalWrite(ledA, contar);
+      Serial.println("LED RESTA");
+      mensaje = "";
+    }
+  }
+
+  //******************************************************************************************
+
+  //para primer potenciometro
   voltaje = analogReadMilliVolts(pot1) / 10.0;
   int temp = voltaje;
   decenas = temp / 100.0;
@@ -89,18 +154,15 @@ void loop()
   temp2 = temp2 - unidades2 * 10.0;
   decimal2 = temp2;
 
-  Serial.print("Rojo: ");
-  Serial.print(voltaje);
-  Serial.print("\n");
-
-  Serial.print("Verde: ");
-  Serial.print(voltaje2);
-  Serial.print("\n");
-
-  Serial.print("Azul: ");
-  Serial.print(contador);
-  Serial.print("\n");
-
+  //Para leds
+  int potvalue = analogRead(pot1);
+  int ledValue = map(potvalue, 0, 1023, 0, 255);
+  digitalWrite(ledR, ledValue);
+  delay(2);
+  int potvalue2 = analogRead(pot2);
+  int ledValue2 = map(potvalue2, 0, 1023, 0, 255);
+  digitalWrite(ledV, ledValue2);
+  delay(2);
 
   //para limpiar LCD
   LCD.clear();
@@ -110,33 +172,18 @@ void loop()
 
   LCD.setCursor(0, 1); //para cambiar de fila y columna
   LCD.print(decenas);
-  LCD.print('.');
   LCD.print(unidades);
+  LCD.print('.');
   LCD.print(decimal);
   LCD.print(" ");
 
   LCD.print(decenas2);
-  LCD.print('.');
   LCD.print(unidades2);
+  LCD.print('.');
   LCD.print(decimal2);
   LCD.print(" ");
   // para el contador con la comunicacion
-  LCD.print(contador); 
+  LCD.print(contar);
 
   delay(1000);
-}
-
-//-----------------------------------------------------------------------------
-//Funcion para configurar pwm de las leds
-//-----------------------------------------------------------------------------
-void configurarPWMLED(void)
-{
-  // primero se configura el modulo pwm
-  ledcSetup(PWMcanalL1, frecPWM, resolucion);
-  ledcSetup(PWMcanalL2, frecPWM, resolucion);
-  ledcSetup(PWMcanalL3, frecPWM, resolucion);
-  //Para leds. Se conecta el GPIO al canal
-  ledcAttachPin(pinPWMR, PWMcanalL1);
-  ledcAttachPin(pinPWMV, PWMcanalL2);
-  ledcAttachPin(pinPWMA, PWMcanalL3);
 }
